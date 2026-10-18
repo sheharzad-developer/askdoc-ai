@@ -1,4 +1,3 @@
-
 services:
   backend:
     build:
@@ -9,11 +8,12 @@ services:
 
   frontend:
     build:
-      context: ./frontend/frontend
+      context: ./frontend
+      dockerfile: Dockerfile
       args:
         VITE_API_URL: http://localhost:8000
     ports:
       - "5173:80"
-    restart: unless-stopped
     depends_on:
       - backend
+    restart: unless-stopped
