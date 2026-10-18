@@ -141,3 +141,42 @@ def test_search_rejects_top_k_out_of_range():
         )
 
     assert response.status_code == 422
+
+def test_search_removes_exact_duplicate_chunks(monkeypatch):
+    from app.services.rag_service import RAGService
+
+    service = RAGService.__new__(RAGService)
+    service.model = None
+    service.index = None
+    service.chunks = [
+        "AskDoc AI supports PDF search.",
+        "AskDoc AI supports PDF search.",
+    ]
+    service.metadata = [
+        {"filename": "guide.pdf", "page": 1},
+        {"filename": "guide.pdf", "page": 1},
+    ]
+
+    class FakeIndex:
+        def search(self, query_embedding, count):
+            import numpy as np
+            return (
+                np.array([[0.95, 0.90]], dtype=np.float32),
+                np.array([[0, 1]], dtype=np.int64),
+            )
+
+    class FakeModel:
+        def encode(self, *args, **kwargs):
+            import numpy as np
+            return np.array([[1.0, 0.0]], dtype=np.float32)
+
+    service.index = FakeIndex()
+    service.model = FakeModel()
+
+    results = service.search("How does PDF search work?", top_k=2)
+
+    assert len(results) == 1
+    assert results[0]["text"] == "AskDoc AI supports PDF search."
+    assert results[0]["filename"] == "guide.pdf"
+    assert results[0]["page"] == 1
+    assert results[0]["score"] == pytest.approx(0.95)

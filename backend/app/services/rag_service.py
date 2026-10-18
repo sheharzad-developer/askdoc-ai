@@ -64,15 +64,26 @@ class RAGService:
         scores, indices = self.index.search(query_embedding, count)
 
         results = []
+        seen_chunks = set()
 
         for score, index in zip(scores[0], indices[0]):
             if index < 0:
                 continue
 
+            chunk_index = int(index)
+            text = self.chunks[chunk_index]
+            normalized_text = " ".join(text.lower().split())
+
+            # Skip identical passages returned more than once.
+            if normalized_text in seen_chunks:
+                continue
+
+            seen_chunks.add(normalized_text)
+
             results.append({
-                "text": self.chunks[int(index)],
+                "text": text,
                 "score": float(score),
-                **self.metadata[int(index)],
+                **self.metadata[chunk_index],
             })
 
         return results
